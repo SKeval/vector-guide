@@ -19,6 +19,7 @@ from langchain_core.documents import Document
 from typing import Any, Optional
 from dataclasses import dataclass
 import pandas as pd
+import numpy as np
 import warnings
 
 import sys
@@ -107,17 +108,6 @@ class VectorGuideEngine:
                 })
             documents.append(document)
 
-        # ── TODO 3: Build the FAISS vectorstore ──────────────────────────────
-
-        # Pass your documents list and self.embeddings to FAISS.from_documents().
-        # Store the result as self.vectorstore.
-        #
-        # This one call does three things internally:
-        #   1. Calls self.embeddings.embed_documents() on all page_content texts
-        #   2. Stores the resulting vectors in a FAISS index
-        #   3. Keeps the Documents alongside so you can retrieve them later
-        #
-        # Docs: https://python.langchain.com/docs/integrations/vectorstores/faiss/
         print("Building FAISS vector index...")
 
         self.vectorstore = FAISS.from_documents(documents, self.embeddings)
@@ -148,20 +138,17 @@ class VectorGuideEngine:
         is_cold_start = user_interaction_count < self.config.cold_start_threshold
 
         fetch_n = min(k * 3, len(self.df))
-        raw = self.vectorstore.similarity_search_with_score(query, k=fetch_n)
-
-        # FAISS returns L2 distance by default. You need similarity (0-1).
-
-        # Convert distance to similarity using this formula:
-
-        # So distance=0 (identical) → similarity=1.0
-        #    distance=1             → similarity=0.5
-        #    distance=2             → similarity=0.33
-
-        # Build a list of (Document, similarity_score) tuples.
+        raw = self.vectorstore.max_marginal_relevance_search(query, k=fetch_n, fetch_k=fetch_n*2)
+        
+        query_vector = self.embeddings.embed_query(query)
+        
+        
+        
         scored = []
-        for document, distance in raw:
-            similarity = 1 / (1 + distance)
+        doc_vector = self.embeddings.embed_documents([document.page_content for document in raw])
+        
+        for document, doc_vector in zip(raw, doc_vector):
+            similarity = self._cosine_similarity(query_vector, doc_vector)
             scored.append((document, similarity))
 
         # Each Document's metadata has the expert's id).
@@ -186,29 +173,7 @@ class VectorGuideEngine:
 
         final_score_sorted = sorted(
             final_scored, key=lambda x: x[1], reverse=True)
-        #print(final_score_sorted[:k])
-
-        # ── TODO 9 (stretch): MMR diversity re-ranking ────────────────────────
-        # If your top results are too similar to each other (e.g. 3 mindfulness
-        # coaches), use LangChain's built-in MMR search instead of TODO 4.
-        #
-        # Replace similarity_search_with_score() with:
-        #   self.vectorstore.max_marginal_relevance_search(query, k=fetch_n, fetch_k=fetch_n*2)
-        #
-        # This returns Documents (no scores), so you'll need to re-score them
-        # using self.embeddings.embed_query(query) + manual cosine similarity.
-        # Do this only after TODO 4-8 are working.
-
-        # ── TODO 10: Build MatchResult objects ───────────────────────────────
-        # For each (doc, final_score, raw_similarity) in your top_k:
-        #   - rank          : position (1-indexed)
-        #   - name          : doc.metadata["name"]
-        #   - description   : doc.page_content
-        #   - similarity_score : raw_similarity (not the blended score)
-        #   - popularity_rank  : use self._popularity_rank(doc.metadata["id"])
-        #   - metadata      : pull all config.metadata_fields from doc.metadata
-        #   - reason        : use self._build_reason(raw_similarity, is_cold_start)
-        # TODO 10 ↓
+        
         results = []
         for i,(doc, final_score, raw_similarity) in enumerate(final_score_sorted[:k]):
 
@@ -227,6 +192,11 @@ class VectorGuideEngine:
 
     # ── Private helpers (fully implemented — use these in your TODOs) ─────────
 
+    def _cosine_similarity(self, vec1, vec2):
+            a = np.array(vec1)
+            b = np.array(vec2)
+            return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    
     def _popularity_rank(self, expert_id: str) -> int:
         """Returns 1-indexed popularity rank. 1 = most popular."""
         if not self.popularity_map:
