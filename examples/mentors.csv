@@ -1,0 +1,9 @@
+id,mentor_name,expertise,industry,company,years_experience,mentees_helped
+m001,Priya Sharma,"Machine learning engineering, MLOps, and transitioning from data scientist to ML engineer at top tech companies","AI / Machine Learning","Google DeepMind",9,87
+m002,Tom Brecker,"Early-stage startup fundraising, pitch deck construction, and navigating seed to Series A rounds","Venture Capital / Startups","Former Founder (2 exits)",14,63
+m003,Aisha Kamara,"Product management for non-technical PMs breaking into tech from consulting, finance, or marketing backgrounds","Product Management","Stripe",7,124
+m004,Lars Eriksson,"Backend systems engineering, distributed systems design, and engineering leadership for senior engineers","Software Engineering","Spotify",11,95
+m005,Diana Chen,"UX research and product design, building design systems, and transitioning from graphic design to product design","Product Design","Figma",6,78
+m006,Marcus Johnson,"Data engineering, building modern data stacks with dbt and Snowflake, and moving from analyst to data engineer","Data Engineering","Airbnb",8,102
+m007,Yuna Park,"Growth marketing, SEO, and performance marketing for B2C consumer apps and marketplace businesses","Marketing","TikTok",5,56
+m008,Raj Patel,"Cybersecurity, cloud security on AWS and GCP, and transitioning into security engineering from software development","Cybersecurity","Cloudflare",10,71

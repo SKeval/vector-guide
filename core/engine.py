@@ -11,14 +11,15 @@ Before you start, read these (in order):
 
 
 from __future__ import annotations
+
 from config import VectorGuideConfig
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-import warnings
-import pandas as pd
 from typing import Any, Optional
 from dataclasses import dataclass
+import pandas as pd
+import warnings
 
 import sys
 from pathlib import Path
@@ -88,25 +89,26 @@ class VectorGuideEngine:
                         row[config.popularity_field]) / max_val
 
         self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-mpnet-base-v2")
+            model_name=config.embedding_model)
 
         print(f"Loading embedding model: {config.embedding_model}")
 
-        
         print("Converting data to LangChain documents...")
         documents: list[Document] = []
-        for row in df.iterrows():
+        for _, row in df.iterrows():
             document = Document(
                 page_content=row[config.description_field],
                 metadata={
                     "id": str(row[config.id_field]),
                     "name": row[config.name_field],
                     "popularity_score": self.popularity_map.get(str(row[config.id_field]), 0.0),
-                    **{field: row[field] for field in config.metadata_fields if field in row}  # include extra metadata fields
+                    # include extra metadata fields
+                    **{field: row[field] for field in config.metadata_fields if field in row}
                 })
             documents.append(document)
 
         # ── TODO 3: Build the FAISS vectorstore ──────────────────────────────
+
         # Pass your documents list and self.embeddings to FAISS.from_documents().
         # Store the result as self.vectorstore.
         #
@@ -117,9 +119,8 @@ class VectorGuideEngine:
         #
         # Docs: https://python.langchain.com/docs/integrations/vectorstores/faiss/
         print("Building FAISS vector index...")
-        # TODO 3 ↓
-        raise NotImplementedError("TODO 3: build FAISS vectorstore")
 
+        self.vectorstore = FAISS.from_documents(documents, self.embeddings)
         print(f"Ready — {len(documents)} experts indexed.\n")
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -146,63 +147,46 @@ class VectorGuideEngine:
         exclude_ids = set(exclude_ids or [])
         is_cold_start = user_interaction_count < self.config.cold_start_threshold
 
-        # ── TODO 4: Query the FAISS vectorstore ──────────────────────────────
-        # Use similarity_search_with_score() to get the top candidates.
-        # Fetch more than k so you have extras after filtering excluded IDs.
-        # A good rule of thumb: fetch min(k * 3, total_experts).
-        #
-        # This returns: [(Document, float), ...]
-        # The float is a DISTANCE (lower = more similar for FAISS default).
-        #
-        # Hint:
-        #   raw = self.vectorstore.similarity_search_with_score(query, k=fetch_n)
-        #
-        # Docs: similarity_search_with_score section in
-        # https://python.langchain.com/docs/integrations/vectorstores/faiss/
         fetch_n = min(k * 3, len(self.df))
-        # TODO 4 ↓
-        raise NotImplementedError("TODO 4: query the vectorstore")
+        raw = self.vectorstore.similarity_search_with_score(query, k=fetch_n)
 
-        # ── TODO 5: Convert distance → similarity score ───────────────────────
         # FAISS returns L2 distance by default. You need similarity (0-1).
-        # A simple conversion that works well:
-        #
-        #   similarity = 1 / (1 + distance)
-        #
+
+        # Convert distance to similarity using this formula:
+
         # So distance=0 (identical) → similarity=1.0
         #    distance=1             → similarity=0.5
         #    distance=2             → similarity=0.33
-        #
+
         # Build a list of (Document, similarity_score) tuples.
-        # TODO 5 ↓
-        raise NotImplementedError(
-            "TODO 5: convert distance to similarity score")
+        scored = []
+        for document, distance in raw:
+            similarity = 1 / (1 + distance)
+            scored.append((document, similarity))
 
-        # ── TODO 6: Filter out excluded IDs ──────────────────────────────────
-        # Each Document's metadata has the expert's id (you stored it in TODO 2).
+        # Each Document's metadata has the expert's id).
         # Remove any (doc, score) pair where doc.metadata["id"] is in exclude_ids.
-        # TODO 6 ↓
-        raise NotImplementedError("TODO 6: filter excluded IDs")
+        scored = [
+            (doc, sim) for doc, sim in scored
+            if doc.metadata["id"] not in exclude_ids
+        ]
 
-        # ── TODO 7: Cold-start blending ───────────────────────────────────────
         # For new users (is_cold_start=True), blend semantic score with popularity.
-        #
-        # Formula:
-        #   if is_cold_start and popularity is available:
-        #       pop_score = doc.metadata.get("popularity_score", 0.0)
-        #       final = config.semantic_weight * similarity + (1 - config.semantic_weight) * pop_score
-        #   else:
-        #       final = similarity
-        #
-        # Build a list of (Document, final_score, raw_similarity) tuples.
-        # Keep raw_similarity separately — you'll use it in _build_reason().
-        # TODO 7 ↓
-        raise NotImplementedError("TODO 7: cold-start blending")
 
-        # ── TODO 8: Sort by final score and take top_k ───────────────────────
-        # Sort descending by final_score, then slice to k.
-        # TODO 8 ↓
-        raise NotImplementedError("TODO 8: sort and slice")
+        final_scored = []
+        for doc, sim in scored:
+            if is_cold_start and self.popularity_map:
+                pop_score = doc.metadata.get("popularity_score", 0.0)
+                final_score = self.config.semantic_weight * sim + \
+                    (1 - self.config.semantic_weight) * pop_score
+            else:
+                final_score = sim
+            # keep raw similarity for reason
+            final_scored.append((doc, final_score, sim))
+
+        final_score_sorted = sorted(
+            final_scored, key=lambda x: x[1], reverse=True)
+        #print(final_score_sorted[:k])
 
         # ── TODO 9 (stretch): MMR diversity re-ranking ────────────────────────
         # If your top results are too similar to each other (e.g. 3 mindfulness
@@ -225,7 +209,21 @@ class VectorGuideEngine:
         #   - metadata      : pull all config.metadata_fields from doc.metadata
         #   - reason        : use self._build_reason(raw_similarity, is_cold_start)
         # TODO 10 ↓
-        raise NotImplementedError("TODO 10: build MatchResult objects")
+        results = []
+        for i,(doc, final_score, raw_similarity) in enumerate(final_score_sorted[:k]):
+
+            matchresult = MatchResult(
+                rank=i+1,
+                name=doc.metadata["name"],
+                description=doc.page_content,
+                similarity_score=raw_similarity,
+                popularity_rank=self._popularity_rank(doc.metadata["id"]),
+                metadata={field: doc.metadata.get(
+                    field) for field in self.config.metadata_fields},
+                reason=self._build_reason(raw_similarity, is_cold_start)
+            )
+            results.append(matchresult)
+        return results
 
     # ── Private helpers (fully implemented — use these in your TODOs) ─────────
 
@@ -261,3 +259,19 @@ def load_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     df.columns = df.columns.str.strip()
     return df
+
+
+if __name__ == "__main__":
+    from config import COACHES_CONFIG
+    import pandas as pd
+
+    df = pd.read_csv("examples/coaches.csv")
+    engine = VectorGuideEngine(df, COACHES_CONFIG)
+
+    results = engine.vectorstore.similarity_search_with_score(
+        "stress and anxiety", k=2)
+    for doc, score in results:
+        print(doc.metadata["name"])
+        print(doc.page_content)
+        print(f"distance score: {score}")
+        print("---")

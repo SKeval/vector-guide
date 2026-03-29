@@ -1,0 +1,9 @@
+id,therapist_name,about,approach,price_per_session,languages,reviews_count
+t001,Dr. Amara Osei,"Specialising in trauma recovery, PTSD, and complex grief using EMDR and somatic experiencing techniques","EMDR, Somatic Experiencing",120,"English, French",340
+t002,Michael Hartmann,"Cognitive behavioural therapy for anxiety disorders, OCD, and panic attacks in adults and adolescents","CBT, Exposure Therapy",90,"English, German",510
+t003,Leila Nouri,"Couples and family therapy focused on communication breakdowns, infidelity recovery, and blended family dynamics","Emotionally Focused Therapy, Gottman Method",110,"English, Farsi",280
+t004,Dr. Sarah Bloom,"Specialising in perinatal mental health, postpartum depression, and anxiety during pregnancy and new parenthood","CBT, Mindfulness-Based Therapy",100,"English",190
+t005,James Chukwu,"Adolescent and young adult therapy for identity, self-esteem, social anxiety, and school-related stress","Person-Centred, ACT",80,"English",420
+t006,Dr. Yuki Morita,"Eating disorders, body dysmorphia, and disordered eating patterns using a Health at Every Size approach","DBT, Nutritional Psychology",130,"English, Japanese",160
+t007,Fatima Al-Rashid,"Depression, existential crisis, and meaning-making for adults navigating major life transitions","Existential Therapy, Narrative Therapy",95,"English, Arabic",370
+t008,Dr. Elena Vasquez,"ADHD in adults and children, executive functioning, and neurodivergent identity and self-acceptance","CBT, Psychoeducation",105,"English, Spanish",240
